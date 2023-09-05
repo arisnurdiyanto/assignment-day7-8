@@ -1,6 +1,8 @@
 const Ticket = require('../models/Ticket');
 const { validationResult } = require('express-validator');
 const { createToken, verifyToken } = require('../middleware/authMiddleware');
+const bcrypt = require('bcrypt');
+const User = require('../models/user');
 
 // Fungsi untuk membuat tiket baru
 exports.createTicket = async (req, res) => {
@@ -56,9 +58,28 @@ exports.deleteTicket = async (req, res) => {
 };
 
 // Fungsi untuk login-token
-exports.login = (req, res) => {
-  const userId = 123; 
-  const token = createToken(userId);
+exports.login = async (req, res) => {
+  try {
+    const { username, password } = req.body;
+    const user = await findUserByUsername(username);
+    const passwordMatch = await bcrypt.compare(password, user.password);
+    const token = createToken(user._id);
 
-  res.json({ token });
+    if (!user) {
+      return res.status(401).json({ error: 'Autentikasi gagal' });
+    }
+    if (!passwordMatch) {
+      return res.status(401).json({ error: 'Autentikasi gagal' });
+    }
+    res.json({ token });
+  } catch (error) {
+    console.error('Error:', error);
+    res.status(500).json({ error: 'Gagal melakukan autentikasi' });
+  }
 };
+
+async function findUserByUsername(username) {
+  const user = await User.findOne({ username });
+
+  return user;
+}
